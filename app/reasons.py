@@ -6,5 +6,16 @@ REASONS = {
     "TRUNCATED_INPUT": "输入尾部不完整",
     "UNKNOWN_REFERENCE": "引用对象不存在",
     "RECONCILE_DIFF": "对账不相等",
+    "EMPTY_INVOICE": "整票没有可核验的行",
+    "MIXED_CONVENTION": "同票混用计税约定",
+    "CONVENTION_CONFLICT": "声明约定与绑定约定不一致",
+    "UNKNOWN_CONVENTION": "未知的计税约定",
+    "EVIDENCE_INSUFFICIENT": "证据不足，拒绝猜算",
+    "INVOICE_CONFLICT": "同号发票内容冲突",
+    "REGISTRATION_CONFLICT": "同号发票已以其他内容登记",
+    "BAD_TAX_RATE": "税率格式不正确",
+    "BAD_AMOUNT": "金额格式不正确",
+    "BAD_LINE_NUMBER": "来源行号不合法",
+    "DUPLICATE_LINE": "来源行号重复",
 }
 

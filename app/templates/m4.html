@@ -1,27 +1,93 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="kpis">
-  <div class="kpi"><b>单据行</b><strong>5</strong><small>条</small></div>
-  <div class="kpi"><b>通过</b><strong>3</strong><small>条</small></div>
-  <div class="kpi"><b>隔离</b><strong>1</strong><small>条</small></div>
-  <div class="kpi"><b>规则版</b><strong>1.4</strong><small>v</small></div>
+  <div class="kpi"><b>已登记发票</b><strong>{{ summary.invoices|length }}</strong><small>张</small></div>
+  <div class="kpi"><b>整票计税</b><strong>{{ summary.conventions.get("whole_invoice", 0) }}</strong><small>张</small></div>
+  <div class="kpi"><b>逐行计税</b><strong>{{ summary.conventions.get("line_by_line", 0) }}</strong><small>张</small></div>
+  <div class="kpi"><b>待恢复旧凭据</b><strong>{{ summary.legacy.get("pending", 0) + summary.legacy.get("failed", 0) }}</strong><small>条</small></div>
 </section>
 <div class="grid grid--quad">
   <section class="panel">
-    <div class="panel__head"><h2>税额核验</h2><span class="state state--ok">通过</span></div>
+    <div class="panel__head"><h2>税额核验</h2><span class="state state--ok">按接收时约定复核</span></div>
     <div class="panel__body panel__body--scroll">
-      <table class="ledger"><thead><tr><th>序号</th><th>业务键</th><th>状态</th><th class="num">值</th></tr></thead>
-      <tbody>{% for row in rows %}<tr><td class="num">{{ loop.index }}</td><td>{{ row.key }}</td><td>{{ row.status }}</td><td class="num">{{ row.value }}</td></tr>{% endfor %}</tbody></table>
+      <table class="ledger"><thead><tr><th>序号</th><th>发票</th><th>约定</th><th>状态</th><th class="num">含税额</th></tr></thead>
+      <tbody>{% for row in rows %}<tr><td class="num">{{ loop.index }}</td><td>{{ row.key }}</td><td>{{ row.convention or "—" }}</td><td>{{ row.status }}</td><td class="num">{{ row.value }}</td></tr>{% endfor %}</tbody></table>
     </div>
   </section>
   <section class="panel panel--evidence">
-    <div class="panel__head"><h2>证据</h2><span class="panel__meta">5 条</span></div>
-    <div class="panel__body"><div class="evidence"><b>RUN-659-4</b><span>LINE 5</span><code>/api/tax/check</code></div><pre id="result">等待运行</pre></div>
+    <div class="panel__head"><h2>证据</h2><span class="panel__meta">净额依据快照</span></div>
+    <div class="panel__body"><div class="evidence"><b>M4 · TAX CONVENTION</b><span>供应商 → 约定版本 → 发票绑定</span><code>/api/tax/invoices/import</code></div><pre id="result">等待运行</pre></div>
   </section>
   <section class="panel panel--status">
-    <div class="panel__head"><h2>原因分布</h2><span class="panel__meta">1 类</span></div>
-    <div class="panel__body"><div class="bar"><i style="width:73%"></i></div><div class="legend"><span>采纳 5</span><span>隔离 1</span></div></div>
+    <div class="panel__head"><h2>旧凭据迁移</h2><span class="panel__meta">{{ summary.legacy|length }} 类</span></div>
+    <div class="panel__body">
+      <div class="legend">
+        <span>已迁移 {{ summary.legacy.get("migrated", 0) }}</span>
+        <span>拒绝 {{ summary.legacy.get("rejected", 0) }}</span>
+        <span>待处理 {{ summary.legacy.get("pending", 0) }}</span>
+      </div>
+      <div class="form-row"><button class="btn btn--primary" id="resume-legacy">恢复迁移</button><span id="legacy-feedback" class="hint">中断后从未完成处继续</span></div>
+    </div>
   </section>
 </div>
-{% endblock %}
 
+<div class="grid grid--quad">
+  <section class="panel">
+    <div class="panel__head"><h2>导入真实发票</h2><span class="panel__meta">CSV</span></div>
+    <div class="panel__body">
+      <form id="csv-form">
+        <textarea id="csv" spellcheck="false" rows="9" placeholder="supplier_code,doc_no,line_no,sku,tax_rate,quantity,unit_price,net_amount,tax_amount,invoice_gross,convention">{{ sample_csv }}</textarea>
+        <div class="form-row">
+          <label class="hint">期望约定版本 <input id="expected-revision" type="number" min="0" placeholder="可选"></label>
+          <button class="btn btn--primary" type="submit">导入</button>
+        </div>
+      </form>
+      <pre id="csv-result">尚未导入</pre>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel__head"><h2>切换供应商约定</h2><span class="panel__meta">仅影响新发票</span></div>
+    <div class="panel__body">
+      <form id="policy-form">
+        <div class="form-row"><label>供应商编码 <input id="policy-supplier" value="000031" required></label></div>
+        <div class="form-row"><label>约定
+          <select id="policy-convention">
+            <option value="whole_invoice">整票净额舍入</option>
+            <option value="line_by_line">逐行税额</option>
+          </select></label>
+          <label class="hint">期望版本 <input id="policy-revision" type="number" min="0" placeholder="可选"></label>
+        </div>
+        <div class="form-row"><button class="btn btn--primary" type="submit">切换</button></div>
+      </form>
+      <pre id="policy-result">{% for supplier in summary.suppliers %}{{ supplier.supplier_code }} · {{ supplier.convention }} · v{{ supplier.revision }}
+{% else %}尚无供应商约定{% endfor %}</pre>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel__head"><h2>回看差异</h2><span class="panel__meta">不改原凭据</span></div>
+    <div class="panel__body">
+      <form id="review-form">
+        <div class="form-row"><label>供应商 <input id="review-supplier" value="000031" required></label><label>发票号 <input id="review-doc" placeholder="IV-001" required></label><button class="btn btn--primary" type="submit">回看</button></div>
+      </form>
+      <pre id="review-result">选择已登记发票</pre>
+    </div>
+  </section>
+</div>
+
+<section class="panel" style="margin-top:14px">
+  <div class="panel__head"><h2>已登记发票</h2><span class="panel__meta">批注不变的约定与净额依据</span></div>
+  <div class="panel__body panel__body--scroll">
+    <table class="ledger">
+      <thead><tr><th>发票</th><th>供应商</th><th>约定</th><th>版本</th><th>来源</th><th class="num">净额</th><th class="num">税额</th><th class="num">含税额</th><th>复核</th></tr></thead>
+      <tbody>
+      {% for invoice in summary.invoices %}
+        <tr><td>{{ invoice.doc_no }}</td><td>{{ invoice.supplier_code }}</td><td>{{ invoice.convention }}</td><td class="num">v{{ invoice.policy_revision }}</td><td>{{ invoice.source }}</td><td class="num">{{ invoice.total.net }}</td><td class="num">{{ invoice.total.tax }}</td><td class="num">{{ invoice.total.gross }}</td><td>{{ invoice.status }}</td></tr>
+      {% else %}
+        <tr><td colspan="9">尚无已登记发票</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/tax.js"></script>{% endblock %}

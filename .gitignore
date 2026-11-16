@@ -29,3 +29,6 @@ target/
 *.o
 *.obj
 .DS_Store
+
+# 运行时数据库
+data/

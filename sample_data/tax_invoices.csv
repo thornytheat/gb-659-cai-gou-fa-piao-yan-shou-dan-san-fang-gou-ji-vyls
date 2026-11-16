@@ -1,0 +1,8 @@
+supplier_code,doc_no,line_no,sku,tax_rate,quantity,unit_price,net_amount,tax_amount,invoice_gross,convention
+000031,IV-501,2,000142,13%,1,1000.004,1000.004,130.00,1243.01,whole_invoice
+000031,IV-501,3,000142,13%,0.1,1000.04,100.004,13.00,,whole_invoice
+000031,IV-502,2,000143,9%,2,250.005,500.01,45.00,545.01,whole_invoice
+000031,IV-502,3,000143,13%,1,100.00,100.00,13.00,,whole_invoice
+000031,IV-503,2,000144,13%,1,100.00,100.00,13.00,113.00,line_by_line
+000031,IV-503,3,000144,9%,1,100.00,100.00,9.00,,whole_invoice
+000031,IV-504,2,000145,13%,,,,,113.00,whole_invoice

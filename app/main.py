@@ -1,8 +1,9 @@
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from app.config import APP_VERSION
+from app.errors import DomainError
 from app.store import init_db
 from app.modules.m1_documents.handler import router as m1_documents_router
 from app.modules.m2_master.handler import router as m2_master_router
@@ -25,6 +26,14 @@ app.include_router(m6_batches_router)
 @app.on_event("startup")
 def startup():
     init_db()
+
+
+@app.exception_handler(DomainError)
+def domain_error_handler(request: Request, exc: DomainError):
+    return JSONResponse(
+        status_code=exc.status,
+        content={"detail": {"code": exc.code, "message": exc.message}},
+    )
 
 @app.get("/", include_in_schema=False)
 def home():

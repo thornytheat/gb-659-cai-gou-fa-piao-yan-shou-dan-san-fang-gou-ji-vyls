@@ -21,3 +21,10 @@ docker compose up --build
 
 同一输入内容生成相同运行标识，重复执行复用已有批次。隔离记录包含原因码、原始行号与原值；业务导出只保留一份证据清单。
 
+
+## 税额约定（M4）
+
+- 供应商约定在 `/tax` 页面切换：逐行税额（`line_by_line`，默认）或整票净额舍入（`whole_invoice`）。
+- 发票登记时绑定当时的约定版本与净额依据；切换只影响新发票，旧票仍按原约定复核。
+- 同票按税率分组核算，混用约定整票拒收；旧凭据迁移中断可恢复，证据不足时拒绝猜算。
+- 接口：`/api/tax/supplier/convention`、`/api/tax/invoices/import-csv`、`/api/tax/invoices/{supplier}/{doc_no}/review`、`/api/tax/legacy/import`、`/api/tax/legacy/migrate`。
